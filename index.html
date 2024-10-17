@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Affichage des Données avec Chart.js</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 10;
+      box-sizing: border-box;
+    }
+
+    canvas {
+      margin-top: 20px;
+      display: block;
+      max-width: 100%;
+    }
+
+    button {
+      margin: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+    }
+
+    .container {
+      display: flex;
+      /* Utilisation de flexbox */
+      justify-content: center;
+      /* Espacement autour des éléments */
+      align-items: center;
+      /* Alignement vertical centré */
+      // padding: 0;                   /* Pas de padding entre le graphe et l'image */
+      //margin: 0 20px;
+      margin-top: 10px;
+      /* Espacement réduit entre le conteneur et l'élément précédent */
+
+    }
+
+    .chart-container {
+      width: 330px;
+      height: 250px;
+      margin: 0 20px;
+      border: 1px solid #ccc;
+    }
+
+    #cameraImage {
+      width: 330px;
+      /* Taille légèrement ajustée pour réduire l'espace */
+      height: auto;
+      /* L'image garde ses proportions */
+      object-fit: contain;
+      /* Ajuste l'image à l'intérieur du conteneur tout en conservant les proportions */
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+
+  <h1>Contrôle de la température des radiateurs</h1>
+  <section id="aff_buttons_cam">
+    <button onclick="sendCommand('Down')" id="down" class="gros_bouton"> Down </button>
+    <button onclick="sendCommand('Up')" id="up" class="gros_bouton">Up</button>
+    <button onclick="sendCommand('Excur')" id="excur" class="gros_bouton">Excur</button>
+    <button onclick="sendCommand('Stop')" id="stop" class="gros_bouton">Stop</button>
+    <button onclick="sendCommand('Raz1000')" id="Raz" class="gros_bouton">Raz milieu</button>
+  </section>
+  <button onclick="sendCommand('LED_ON')">Allumer LED</button>
+  <button onclick="sendCommand('LED_OFF')">Éteindre LED</button>
+
+  <div id="data">
+    <h2 style="display:inline;">Données du système</h2>
+    <p style="display:inline; margin-left: 10px;">mvdch</p>
+    <p>T Cycle: <span id="temps_de_cycle">--</span></p>
+    <p>Position: <span id="position">--</span></p>
+    <p>Température radiateur: <span id="temperature">--</span>°C</p>
+    <p>RSSI: <span id="rssi">--</span>%</p>
+    <p> redemarrage: <span id="redemarrage">--</span></p>
+  </div>
+
+  <div class="container">
+    <div class="chart-container">
+      <!-- Canvas pour afficher le graphique Chart.js -->
+      <canvas id="myChart" width="400" height="400"></canvas>
+    </div>
+    <img id="cameraImage" alt="Image de la caméra">
+  </div>
+
+  <!-- Boutons pour ajuster le début et la fin de l'affichage -->
+  <div>
+    <h2>Echelle de l'affichage</h2>
+    <button data-mode="1" onclick="changeMode(1)">5 Mn</button>
+    <button data-mode="2" onclick="changeMode(2)">1 H</button>
+    <button data-mode="3" onclick="changeMode(3)">24 H</button>
+  </div>
+
+  <script>
+    let socket;
+    let myChart;
+    var globalBorderColor = 'rgba(75, 192, 192, 1)';  // Couleur par défaut (bleue)
+
+    window.onload = function () {
+      //socket = new WebSocket('wss://mvdch.glitch.me');
+      socket = new WebSocket('wss://mvdtab.glitch.me');
+
+      socket.onopen = function (e) {
+        sendCommand('démarre');
+        console.log("Connecté au WebSocket");
+      };
+
+      socket.onmessage = function (event) {
+        if (event.data.length < 2000) {
+          //console.log("Données capteurs reçues : ", event.data);
+          //console.log("type",event.type); // Affichera "message"
+          //console.log("target",event.target); // Affiche l'objet WebSocket associé
+          //console.log("origin",event.origin); // Affichera l'URL du serveur WebSocket
+          //console.log("lastEventId",event.lastEventId); // Affichera l'ID du dernier événement (peu courant pour WebSocket)
+          //console.log("ports",event.ports); // Généralement vide pour WebSocket
+
+
+          const data = JSON.parse(event.data);
+          console.log('Message reçu:', data);
+
+          document.getElementById('temps_de_cycle').textContent = data.temps_de_cycle;
+          document.getElementById('position').textContent = data.position;
+          document.getElementById('temperature').textContent = data.temperature;
+          document.getElementById('rssi').textContent = data.rssi;
+          document.getElementById('redemarrage').textContent = data.restarts;
+
+          // Créer les tableaux data et time après avoir reçu dataTable2
+          if (data.dataTable2) {
+            const dataArray = data.dataTable2.map(entry => entry.data);
+            const timeArray = data.dataTable2.map(entry => entry.time);
+            var epsilon = 0.5;  // Valeur d'epsilon
+
+            // Initialiser ou mettre à jour le graphique après réception des données
+            if (myChart) {
+
+              // Si le graphique existe déjà, le mettre à jour
+              var minY = Math.min(...dataArray) - epsilon;
+              var maxY = Math.max(...dataArray) + epsilon;
+
+              myChart.data.labels = timeArray;
+              myChart.data.datasets[0].data = dataArray;
+              myChart.data.datasets[0].borderColor = globalBorderColor;
+
+              // Mise à jour des limites minY et maxY de l'axe Y
+              myChart.options.scales.y.min = minY;
+              myChart.options.scales.y.max = maxY;
+
+              myChart.update();
+            } else {
+              // Créer le graphique la première fois
+              const ctx = document.getElementById('myChart').getContext('2d');
+              myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                  labels: timeArray,
+                  datasets: [{
+                    label: 'Température',
+                    data: dataArray,
+                    pointRadius: 0, // Désactive les points
+                    borderWidth: 1,
+                    //borderColor: 'rgba(192, 75, 192, 1)',
+                    borderColor: globalBorderColor,
+                    fill: false
+                  }]
+                },
+                options: {
+                  scales: {
+                    x: {
+                      reverse: true,  // Inverser l'axe X
+                      title: {
+                        display: true,
+                        text: 'Heure d\'arrivée'
+                      }
+                    },
+                    y: {
+                      min: minY,  // Valeur minimale - epsilon
+                      max: maxY,  // Valeur maximale + epsilon
+                      beginAtZero: false,
+                    }
+                  }
+                }
+              });
+            }  //fin my chart
+          }
+
+        } else {
+          const blob = new Blob([event.data], { type: 'image/jpeg' });
+          const imageUrl = URL.createObjectURL(blob);
+          document.getElementById('cameraImage').src = imageUrl;
+          document.getElementById('cameraImage').onload = function () {
+            URL.revokeObjectURL(this.src);
+          }
+        }
+      };
+    };  //fin onload
+
+    function sendCommand(command) {   //fonction envois de commande
+      console.log("Envoi de la commande : " + command);
+      const message = JSON.stringify({ command: command });
+      socket.send(message);
+    }
+
+    function changeMode(mode) {
+      console.log('Mode sélectionné : ' + mode);
+
+      // Sélectionner tous les boutons et réinitialiser leurs styles
+      const buttons = document.querySelectorAll('button[data-mode]');
+      buttons.forEach(btn => {
+        btn.style.border = ''; // Réinitialise la bordure
+        btn.style.backgroundColor = ''; // Réinitialise la couleur de fond
+      });
+
+      // Ajouter le style au bouton sélectionné
+      const selectedButton = document.querySelector(`button[data-mode="${mode}"]`);
+      selectedButton.style.border = '2px solid blue';
+      selectedButton.style.backgroundColor = 'lightblue';
+
+      VarMode = "VarMode=" + mode;
+      sendCommand(VarMode);
+
+      // Changer la couleur en fonction du mode
+      switch (mode) {
+        case 1:
+          globalBorderColor = 'rgba(75, 192, 192, 1)';  // Bleu pour 5 Mn
+          break;
+        case 2:
+          globalBorderColor = 'rgba(255, 159, 64, 1)';  // Orange pour 1 H
+          break;
+        case 3:
+          globalBorderColor = 'rgba(255, 99, 132, 1)';  // Rouge pour 24 H
+          break;
+        default:
+          globalBorderColor = 'rgba(75, 192, 192, 1)';  // Couleur par défaut
+      }
+    }
+
+  </script>
+</body>
+
+</html>
