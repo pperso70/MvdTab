@@ -102,6 +102,7 @@
     let socket;
     let myChart;
     var globalBorderColor = 'rgba(75, 192, 192, 1)';  // Couleur par défaut (bleue)
+    var globalBackgroundColor = 'rgba(54, 162, 235, 0.5)';  // Couleur par défaut (bleue)
 
     window.onload = function () {
       //socket = new WebSocket('wss://mvdch.glitch.me');
@@ -147,6 +148,7 @@
               myChart.data.labels = timeArray;
               myChart.data.datasets[0].data = dataArray;
               myChart.data.datasets[0].borderColor = globalBorderColor;
+              myChart.data.datasets[0].backgroundColor = globalBackgroundColor;
 
               // Mise à jour des limites minY et maxY de l'axe Y
               myChart.options.scales.y.min = minY;
@@ -165,9 +167,9 @@
                     data: dataArray,
                     pointRadius: 0, // Désactive les points
                     borderWidth: 1,
-                    //borderColor: 'rgba(192, 75, 192, 1)',
+                    backgroundColor: globalBackgroundColor, // couleur de remplissage (bleu semi-transparent)
                     borderColor: globalBorderColor,
-                    fill: false
+                    fill: true // active le remplissage sous la courbe
                   }]
                 },
                 options: {
@@ -228,16 +230,20 @@
       // Changer la couleur en fonction du mode
       switch (mode) {
         case 1:
-          globalBorderColor = 'rgba(75, 192, 192, 1)';  // Bleu pour 5 Mn
+          globalBorderColor = 'rgba(0, 0, 255, 1)';  // Bleu pour 5 Mn
+          globalBackgroundColor = 'rgba(0, 0, 255 ,0.1)'; // couleur de remplissage (bleu semi-transparent)
           break;
         case 2:
-          globalBorderColor = 'rgba(255, 159, 64, 1)';  // Orange pour 1 H
+          globalBorderColor = 'rgba(255, 255, 0 ,1)';  // jaune pour 1 H
+          globalBackgroundColor = 'rgba(255, 255, 0 ,0.1)'; // couleur de remplissage (jauneu semi-transparent)
           break;
         case 3:
-          globalBorderColor = 'rgba(255, 99, 132, 1)';  // Rouge pour 24 H
+          globalBorderColor = 'rgba(255, 0, 0, 1)';  // Rouge pour 24 H
+          globalBackgroundColor = 'rgba(255, 0, 0 ,0.1)'; // couleur de remplissage (roujg semi-transparent)
           break;
         default:
           globalBorderColor = 'rgba(75, 192, 192, 1)';  // Couleur par défaut
+          globalBackgroundColor = 'rgba(75, 192, 192, 0.1)'; // couleur de remplissage (bleu semi-transparent)
       }
     }
 
