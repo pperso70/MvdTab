@@ -37,7 +37,6 @@
       //margin: 0 20px;
       margin-top: 10px;
       /* Espacement réduit entre le conteneur et l'élément précédent */
-
     }
 
     .chart-container {
@@ -124,7 +123,7 @@
 
 
           const data = JSON.parse(event.data);
-          console.log('Message reçu:', data);
+          //console.log('Message reçu:', data);
 
           document.getElementById('temps_de_cycle').textContent = data.temps_de_cycle;
           document.getElementById('position').textContent = data.position;
@@ -132,64 +131,104 @@
           document.getElementById('rssi').textContent = data.rssi;
           document.getElementById('redemarrage').textContent = data.restarts;
 
-          // Créer les tableaux data et time après avoir reçu dataTable2
           if (data.dataTable2) {
-            const dataArray = data.dataTable2.map(entry => entry.data);
+            // Séparer les données en deux tableaux distincts pour température et position
+            const tempArray = data.dataTable2.map(entry => parseFloat(entry.temperature));
+            const posArray = data.dataTable2.map(entry => parseFloat(entry.position));
             const timeArray = data.dataTable2.map(entry => entry.time);
-            var epsilon = 0.5;  // Valeur d'epsilon
 
-            // Initialiser ou mettre à jour le graphique après réception des données
+            var epsilonTemp = 0.5;  // Epsilon pour température
+            var epsilonPos = 0.1;   // Epsilon pour position
+
             if (myChart) {
-
-              // Si le graphique existe déjà, le mettre à jour
-              var minY = Math.min(...dataArray) - epsilon;
-              var maxY = Math.max(...dataArray) + epsilon;
+              // Mise à jour du graphique existant
+              const minTemp = Math.min(...tempArray) - epsilonTemp;
+              const maxTemp = Math.max(...tempArray) + epsilonTemp;
+              const minPos = Math.min(...posArray) - epsilonPos;
+              const maxPos = Math.max(...posArray) + epsilonPos;
 
               myChart.data.labels = timeArray;
-              myChart.data.datasets[0].data = dataArray;
+              // Mise à jour des données de température
+              myChart.data.datasets[0].data = tempArray;      
               myChart.data.datasets[0].borderColor = globalBorderColor;
               myChart.data.datasets[0].backgroundColor = globalBackgroundColor;
-
-              // Mise à jour des limites minY et maxY de l'axe Y
-              myChart.options.scales.y.min = minY;
-              myChart.options.scales.y.max = maxY;
+              // Mise à jour des données de position
+              myChart.data.datasets[1].data = posArray;
+              myChart.data.datasets[1].borderColor = 'rgb(255,0,255)';
+              myChart.data.datasets[1].backgroundColor = 'rgba(255,0,255,0.2)';
+              // Configuration des axes Y
+              myChart.options.scales.y.min = minTemp;
+              myChart.options.scales.y.max = maxTemp;
+              myChart.options.scales.y1.min = minPos;
+              myChart.options.scales.y1.max = maxPos;
 
               myChart.update();
             } else {
-              // Créer le graphique la première fois
+              // Création initiale du graphique
               const ctx = document.getElementById('myChart').getContext('2d');
               myChart = new Chart(ctx, {
                 type: 'line',
                 data: {
                   labels: timeArray,
-                  datasets: [{
-                    label: 'Température',
-                    data: dataArray,
-                    pointRadius: 0, // Désactive les points
-                    borderWidth: 1,
-                    backgroundColor: globalBackgroundColor, // couleur de remplissage (bleu semi-transparent)
-                    borderColor: globalBorderColor,
-                    fill: true // active le remplissage sous la courbe
-                  }]
+                  datasets: [
+                    {
+                      label: 'Température (°C)',
+                      data: tempArray,
+                      pointRadius: 0,
+                      borderWidth: 1,
+                      backgroundColor: globalBackgroundColor, // couleur de remplissage (bleu semi-transparent)
+                      borderColor: globalBorderColor,
+                      fill: true,
+                      yAxisID: 'y' // Axe Y principal pour la température
+                    },
+                    {
+                      label: 'Position',
+                      data: posArray,
+                      pointRadius: 0,
+                      borderWidth: 1,
+                      backgroundColor: 'rgba(255,0,255,0.2)',
+                      borderColor: 'rgb(255,0,255)',
+                      fill: true,
+                      yAxisID: 'y1' // Axe Y secondaire pour la position
+                    }
+                  ]
                 },
                 options: {
                   scales: {
                     x: {
-                      reverse: true,  // Inverser l'axe X
+                      reverse: true,
                       title: {
                         display: true,
-                        text: 'Heure d\'arrivée'
+                        text: 'Heure'
                       }
                     },
                     y: {
-                      min: minY,  // Valeur minimale - epsilon
-                      max: maxY,  // Valeur maximale + epsilon
+                      type: 'linear',
+                      display: true,
+                      position: 'left',
+                      title: {
+                        display: true,
+                        text: 'Température (°C)'
+                      },
+                      beginAtZero: false
+                    },
+                    y1: {
+                      type: 'linear',
+                      display: true,
+                      position: 'right',
+                      title: {
+                        display: true,
+                        text: 'Position 0-10'
+                      },
                       beginAtZero: false,
+                      grid: {
+                        drawOnChartArea: false // Ne pas afficher la grille pour l'axe Y secondaire
+                      }
                     }
                   }
                 }
               });
-            }  //fin my chart
+            } //fin my chart
           }
 
         } else {
@@ -235,15 +274,15 @@
           break;
         case 2:
           globalBorderColor = 'rgba(0, 255, 0 ,1)';  // jaune pour 1 H
-          globalBackgroundColor = 'rgba(0, 255, 0 ,0.1)'; // couleur de remplissage (jauneu semi-transparent)
+          globalBackgroundColor = 'rgba(0, 255, 0 ,0.1)'; // couleur de remplissage (jaune semi-transparent)
           break;
         case 3:
           globalBorderColor = 'rgba(255, 0, 0, 1)';  // Rouge pour 24 H
-          globalBackgroundColor = 'rgba(255, 0, 0 ,0.1)'; // couleur de remplissage (roujg semi-transparent)
+          globalBackgroundColor = 'rgba(255, 0, 0 ,0.1)'; // couleur de remplissage (rouge semi-transparent)
           break;
         default:
-          globalBorderColor = 'rgba(75, 192, 192, 1)';  // Couleur par défaut
-          globalBackgroundColor = 'rgba(75, 192, 192, 0.1)'; // couleur de remplissage (bleu semi-transparent)
+          globalBorderColor = 'rgba(78, 78, 78, 1)';  // Couleur par défaut
+          globalBackgroundColor = 'rgba(78, 78, 78, 0.1)'; // couleur de remplissage (bleu semi-transparent)
       }
     }
 
